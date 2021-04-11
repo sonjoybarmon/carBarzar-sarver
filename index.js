@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const bodyParser = require("body-parser");
+const multer = require("multer");
 const MongoClient = require("mongodb").MongoClient;
 const ObjectId = require("mongodb").ObjectID;
 const uri =
@@ -9,8 +10,21 @@ const uri =
 
 const app = express();
 app.use(cors());
+app.use(express.static("public"));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+
+// Image Upload setting
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "./public/accident");
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + "_" + file.originalname);
+  },
+});
+
+const upload = multer({ storage });
 
 let client = new MongoClient(uri, {
   useNewUrlParser: true,
@@ -23,6 +37,10 @@ client.connect((err) => {
   const carSlide = client.db("car-bazar").collection("carImage");
   const hotCars = client.db("car-bazar").collection("hotCars");
   const comingCar = client.db("car-bazar").collection("comingCar");
+
+  const card = client.db("car-bazar").collection("card");
+  const accident = client.db("car-bazar").collection("accident");
+  const patrol = client.db("car-bazar").collection("Patrol");
 
   //car collection
   app.get("/car", (req, res) => {
@@ -39,6 +57,12 @@ client.connect((err) => {
   });
 
   app.get("/details/:_id", (req, res) => {
+    cars.find({ _id: ObjectId(req.params._id) }).toArray((err, document) => {
+      res.send(document[0]);
+    });
+  });
+
+  app.get("/car/:_id/checkout", (req, res) => {
     cars.find({ _id: ObjectId(req.params._id) }).toArray((err, document) => {
       res.send(document[0]);
     });
@@ -103,6 +127,82 @@ client.connect((err) => {
     const comingCars = req.body;
     comingCar.insertOne(comingCars).then((result) => {
       res.send(insertedCount);
+    });
+  });
+
+  //card collection
+  app.get("/card", (req, res) => {
+    card.find({}).toArray((err, document) => {
+      res.send(document);
+      // console.log(document);
+    });
+  });
+  app.post("/card", (req, res) => {
+    const cards = req.body;
+    card.insertOne(cards).then((result) => {
+      res.send(insertedCount);
+    });
+  });
+
+  app.get("/card/:_id", (req, res) => {
+    card.find({ _id: ObjectId(req.params._id) }).toArray((err, document) => {
+      res.send(document[0]);
+    });
+  });
+
+  //accident collection
+  app.get("/accident", (req, res) => {
+    accident.find({}).toArray((err, document) => {
+      res.send(document);
+      // console.log(document);
+    });
+  });
+
+  // app.post("/accident", (req, res) => {
+  app.post("/accident", upload.single("file"), (req, res) => {
+    const accidents = req.body;
+    console.log(accidents);
+    accident.insertOne(accidents).then((result) => {
+      res.send(insertedCount);
+    });
+  });
+
+  app.get("/accident/:_id", (req, res) => {
+    accident
+      .find({ _id: ObjectId(req.params._id) })
+      .toArray((err, document) => {
+        res.send(document[0]);
+      });
+  });
+
+  app.patch("/accident/:_id", (req, res) => {
+    accident
+      .updateOne(
+        { _id: ObjectId(req.params._id) },
+        {
+          $set: { data: req.body.data, cost: req.body.cost },
+        }
+      )
+      .then((result) => console.log(res));
+  });
+
+  //patrol collection
+  app.get("/patrol", (req, res) => {
+    patrol.find({}).toArray((err, document) => {
+      res.send(document);
+      // console.log(document);
+    });
+  });
+  app.post("/patrol", (req, res) => {
+    const patrols = req.body;
+    patrol.insertOne(patrols).then((result) => {
+      res.send(insertedCount);
+    });
+  });
+
+  app.get("/patrol/:_id", (req, res) => {
+    patrol.find({ _id: ObjectId(req.params._id) }).toArray((err, document) => {
+      res.send(document[0]);
     });
   });
 });
